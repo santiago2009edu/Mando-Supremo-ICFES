@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SISTEMA GENERAL ICFES - 48 DÍAS CALIBRADOS</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Plus+Jakarta+Sans:wght@400;600;800&display=swap');
+        body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #020617; color: #f8fafc; }
+        .code-font { font-family: 'JetBrains Mono', monospace; }
+        .sidebar-scroll::-webkit-scrollbar { width: 4px; }
+        .sidebar-scroll::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+        .active-day { background: linear-gradient(135deg, #4338ca, #1e1b4b); border-color: #818cf8; }
+        .badge-soc { bg-blue-950/40; text-blue-400; border-color: #1d4ed8; }
+        .badge-mat { bg-emerald-950/40; text-emerald-400; border-color: #047857; }
+        .badge-cie { bg-purple-950/40; text-purple-400; border-color: #6b21a8; }
+        .badge-lec { bg-amber-950/40; text-amber-400; border-color: #b45309; }
+        .badge-ing { bg-pink-950/40; text-pink-400; border-color: #be185d; }
+        .badge-mar { bg-red-950/40; text-red-400; border-color: #b91c1c; }
+    </style>
+</head>
+<body class="h-screen flex overflow-hidden">
+
+    <aside class="w-96 bg-gray-950 border-r border-slate-900 flex flex-col">
+        <div class="p-5 border-b border-slate-900">
+            <div class="flex items-center gap-2">
+                <div class="w-3 h-3 rounded-full bg-indigo-500 shadow-[0_0_10px_#6366f1]"></div>
+                <h1 class="text-base font-extrabold tracking-tight text-white uppercase">Mando Supremo ICFES</h1>
+            </div>
+            <p class="text-[10px] text-slate-400 mt-1 uppercase tracking-wider font-bold">Ruta de 48 Días - 75% Requerido</p>
+        </div>
+        
+        <nav class="flex-1 overflow-y-auto p-3 space-y-1.5 sidebar-scroll" id="day-navigator"></nav>
+
+        <div class="p-4 bg-slate-900/60 border-t border-slate-900 space-y-2">
+            <div class="grid grid-cols-2 gap-2 text-center text-[10px]">
+                <div class="bg-black/50 p-2 rounded-xl border border-slate-800">
+                    <p class="text-slate-400 font-bold uppercase">Simulacros Hechos</p>
+                    <p id="sim-count" class="text-xs font-black text-indigo-400">0/48</p>
+                </div>
+                <div class="bg-black/50 p-2 rounded-xl border border-slate-800">
+                    <p class="text-slate-400 font-bold uppercase">Días Pasados (≥75%)</p>
+                    <p id="pct-text" class="text-xs font-black text-emerald-400">0%</p>
+                </div>
+            </div>
+            <div>
+                <div class="w-full bg-slate-800 rounded-full h-1">
+                    <div id="pct-bar" class="bg-indigo-500 h-1 rounded-full transition-all duration-500" style="width: 0%"></div>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <main class="flex-1 flex flex-col bg-black">
+        <header class="h-16 border-b border-slate-900 bg-gray-950/40 flex items-center justify-between px-8">
+            <div class="flex items-center gap-3">
+                <span id="current-date-badge" class="code-font text-[10px] bg-slate-900 text-slate-400 px-2 py-1 rounded border border-slate-800 font-bold">FECHA</span>
+                <h2 id="header-title" class="text-xs font-bold text-slate-200">Selecciona una jornada en el panel lateral</h2>
+            </div>
+            <div class="flex gap-2">
+                <button onclick="openModal()" class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs px-4 py-2 rounded-lg transition-all active:scale-95 shadow-lg shadow-indigo-950/40">
+                    <i class="fa-solid fa-square-poll-vertical mr-1"></i> Digitar Buenas
+                </button>
+                <button onclick="toggleDayComplete()" class="bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs px-4 py-2 rounded-lg transition-all">
+                    Forzar Completado
+                </button>
+            </div>
+        </header>
+
+        <section class="flex-1 overflow-y-auto p-8 flex flex-col items-center">
+            <div id="day-panel" class="w-full max-w-4xl hidden space-y-6">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    
+                    <div class="md:col-span-2 bg-gray-950 border border-slate-900 rounded-2xl p-6 shadow-2xl">
+                        <div class="flex items-center gap-2 mb-3 text-indigo-400">
+                            <i class="fa-solid fa-brain text-xs"></i>
+                            <span id="subject-badge" class="text-[9px] font-bold uppercase tracking-widest bg-indigo-950/50 px-2 py-0.5 rounded border border-indigo-900">MATERIA</span>
+                        </div>
+                        <h3 id="panel-title" class="text-xl font-black text-white tracking-tight mb-4">Título</h3>
+                        <div id="panel-topics-list" class="space-y-2"></div>
+                    </div>
+
+                    <div class="bg-gray-950 border border-slate-900 rounded-2xl p-6 flex flex-col justify-between">
+                        <div>
+                            <div class="flex items-center gap-2 mb-3 text-amber-400">
+                                <i class="fa-solid fa-crosshair text-xs"></i>
+                                <span class="text-[9px] font-bold uppercase tracking-widest">Umbral de Control (75%)</span>
+                            </div>
+                            <p class="text-xs text-slate-400 leading-snug">Meta mínima requerida para hoy:</p>
+                            <p id="sim-goal" class="text-sm font-black text-white mt-1.5 bg-slate-900 p-2 rounded-lg border border-slate-800 text-center">Meta</p>
+                        </div>
+                        <div class="mt-4 p-4 rounded-xl bg-black/40 border border-slate-900 text-center">
+                            <span id="score-label-type" class="text-[9px] text-slate-500 block uppercase font-bold tracking-wider">Tus Respuestas Correctas</span>
+                            <span id="current-score-display" class="text-3xl font-black text-slate-600">--</span>
+                            <span id="status-badge" class="block text-[9px] mt-1.5 font-bold uppercase tracking-widest">Sin datos</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-gradient-to-br from-gray-950 via-slate-950 to-black border border-slate-900 rounded-2xl p-6 space-y-4 shadow-2xl">
+                    <div class="flex justify-between items-center">
+                        <div>
+                            <h4 class="text-xs font-bold text-white flex items-center gap-2 uppercase tracking-wider">
+                                <i class="fa-solid fa-bolt text-amber-400"></i> Inyector de Clase Inteligente (Claude)
+                            </h4>
+                            <p class="text-[11px] text-slate-400 mt-0.5">Prompt de alta densidad conceptual adaptado al temario diario.</p>
+                        </div>
+                        <button onclick="copyCurrentPrompt()" class="bg-white hover:bg-slate-200 text-black font-black text-xs px-5 py-2.5 rounded-xl transition-all active:scale-95 flex items-center gap-2 shadow-lg shadow-white/5">
+                            <i class="fa-solid fa-copy"></i> COPIAR PROMPT MAGISTRAL
+                        </button>
+                    </div>
+                    <div class="bg-black/80 border border-slate-900 rounded-xl p-3.5">
+                        <p id="prompt-preview" class="text-[11px] text-slate-400 font-mono line-clamp-2 whitespace-pre-wrap leading-relaxed"></p>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <div id="score-modal" class="fixed inset-0 bg-black/80 flex items-center justify-center hidden z-50">
+        <div class="bg-gray-950 border border-slate-800 p-6 rounded-2xl w-full max-w-sm space-y-4">
+            <h3 class="text-sm font-bold text-white uppercase tracking-wider">Registrar Buenas</h3>
+            <p id="modal-desc" class="text-xs text-slate-400">Introduce la cantidad de respuestas acertadas en tu simulacro.</p>
+            <div>
+                <input type="number" id="modal-score-input" placeholder="Ej: 18" class="w-full bg-black border border-slate-800 rounded-lg p-2.5 text-white text-xs focus:outline-none focus:border-indigo-500 code-font">
+            </div>
+            <div class="flex justify-end gap-2 text-xs font-bold">
+                <button onclick="closeModal()" class="text-slate-400 hover:text-white px-3 py-2">Cancelar</button>
+                <button onclick="saveScore()" class="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-lg">Procesar Datos</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // BASE DE DATOS ESTRUCTURADA POR TIPOS DE PREGUNTAS (Meta calculada dinámicamente al 75%)
+        const MasterDatabase = [
+            // ================= BLOCK 1: SOCIALES E HISTORIA (DIAS 1-15) - 20 PREGUNTAS =================
+            { 
+                id: 1, fecha: "Sáb, 06 Jun", mat: "Sociales", tit: "Pensamiento Crítico y Sesgo", 
+                sub: ["Discursos que validan la violencia", "Análisis de información sesgada en medios", "Prejuicio, estigma y discriminación"], tp: "20_preguntas",
+                pr: "Actúa como docente experto ICFES. Dicta la clase de Sociales Día 1: 'Pensamiento Crítico y Sesgos'. Explica a profundidad: 1) Cómo se camuflan discursos legitimadores de violencia en discursos políticos colombianos. 2) Técnicas para identificar sesgos e interés particular en medios de comunicación. 3) Psicología social del prejuicio y estigmas. Dame ejemplos colombianos, advierte trampas de opciones en el examen y dime 3 preguntas complejas resueltas."
+            },
+            { 
+                id: 2, fecha: "Dom, 07 Jun", mat: "Sociales", tit: "Multiperspectivismo y Conflicto", 
+                sub: ["Choque de derechos legítimos", "Dimensiones y actores de un conflicto", "Efecto esperado vs no deseado"], tp: "20_preguntas",
+                pr: "Actúa como docente de Ciencias Sociales. Clase Día 2: 'Multiperspectivismo y Estructura del Conflicto'. Enséñame: 1) Dilemas de choque de derechos legítimos en Colombia. 2) Mapeo de dimensiones (económica, ambiental, social) y actores en pugna. 3) Concepto de 'Efecto esperado vs Efecto no deseado' en políticas públicas. Ponme 3 preguntas complejas donde deba evaluar intenciones ocultas de actores."
+            },
+            { 
+                id: 3, fecha: "Lun, 08 Jun", mat: "Sociales", tit: "Constitución y Derechos I", 
+                sub: ["Derechos Fundamentales", "Derechos Económicos, Sociales y Culturales (DESC)", "Derechos Colectivos y del Medio Ambiente"], tp: "20_preguntas",
+                pr: "Actúa como constitucionalista ICFES. Clase Día 3: 'Clasificación de Derechos en Colombia'. Explica: 1) Derechos fundamentales and su núcleo esencial. 2) DESC y el principio de progresividad económica. 3) Derechos colectivos. Analiza cómo el examen los contrapone en casos de minería vs comunidades y dame 3 problemas resueltos tipo Saber 11."
+            },
+            { 
+                id: 4, fecha: "Mar, 09 Jun", mat: "Sociales", tit: "Constitución y Derechos II", 
+                sub: ["Estado Social de Derecho vs Estado de Derecho", "Jurisdicción Especial Indígena", "Multiculturalismo y Acciones Afirmativas"], tp: "20_preguntas",
+                pr: "Actúa como experto constitucional. Clase Día 4: 'Diversidad y Estado Social de Derecho'. Desarrolla: 1) Diferencia teórica e interpretativa entre Estado de Derecho y Estado Social de Derecho. 2) Límites de la Jurisdicción Especial Indígena frente a los DDHH globales. 3) Acciones afirmativas. Bríndame 3 preguntas de alta complejidad sobre fallos de la Corte Constitucional."
+            },
+            { 
+                id: 5, fecha: "Mié, 10 Jun", mat: "Sociales", tit: "Mecanismos de Protección", 
+                sub: ["Acción de Tutela y procedencia", "Habeas Corpus y Acción de Cumplimiento", "Acciones Populares y de Grupo"], tp: "20_preguntas",
+                pr: "Actúa como abogado y docente ICFES. Clase Día 5: 'Mecanismos de Protección de Derechos'. Domina: 1) Acción de Tutela (subsidiariedad, inmediatez y amparo). 2) Habeas Corpus y Acción de Cumplimiento. 3) Diferencia nítida entre Acción Popular y de Grupo con ejemplos de servicios públicos y desastres. Pásame 3 preguntas severas de casos judiciales."
+            },
+            { 
+                id: 6, fecha: "Jue, 11 Jun", mat: "Sociales", tit: "Estructura del Estado", 
+                sub: ["Ramas del Poder Público y pesos/contrapesos", "Organismos de Control", "Instituciones de la Democracia"], tp: "20_preguntas",
+                pr: "Actúa como politólogo experto. Clase Día 6: 'Estructura e Instituciones Estatales'. Enséñame: 1) Ramas ejecutiva, legislativa y judicial (sistema de frenos mutuos). 2) Rol exacto de Procuraduría, Contraloría y Defensoría del Pueblo. 3) Instituciones democráticas colombianas. Añade 3 casos prácticos donde un organismo anula decisiones de otro rama."
+            },
+            { 
+                id: 7, fecha: "Vie, 12 Jun", mat: "Sociales", tit: "Participación Ciudadana", 
+                sub: ["Voto, Cabildo y Revocatoria del Mandato", "Iniciativa y Consulta Popular", "Plebiscito frente a Referendo"], tp: "20_preguntas",
+                pr: "Actúa como experto en derecho electoral. Clase Día 7: 'Mecanismos de Participación Ciudadana'. Explica la diferencia exacta e histórica que evalúa el ICFES entre Plebiscito, Referendo, Consulta Popular, Iniciativa Popular, Revocatoria y Cabildo Abierto. Entrégame las trampas de definición y 3 preguntas tipo Saber 11."
+            },
+            { 
+                id: 8, fecha: "Sáb, 13 Jun", mat: "Sociales", tit: "Conflicto Armado y DIH", 
+                sub: ["Principios del DIH en hostilidades", "Derecho de la Guerra y Justicia Transicional", "Procesos de Paz en Colombia"], tp: "20_preguntas",
+                pr: "Actúa como experto en DIH y postconflicto. Clase Día 8: 'Conflicto y Justicia Transicional'. Desarrolla: 1) Principios de distinción, proporcionalidad y necesidad militar del DIH. 2) Justicia transicional y sus pilares (Verdad, Justicia, Reparación). 3) Historia de los acuerdos de paz de Colombia. Pásame 3 preguntas críticas sobre dilemas de amnistía vs justicia."
+            },
+            { 
+                id: 9, fecha: "Dom, 14 Jun", mat: "Maratón", tit: "MARATÓN GLOBAL 1", 
+                sub: ["Simulacro completo 142 preguntas", "Análisis de tiempos por sección", "Evaluación de fatiga de la primera semana"], tp: "Global",
+                pr: "Actúa como estratega de alto rendimiento ICFES. Guía para la Maratón 1: Explícame cómo enfrentar una prueba real de 142 preguntas dividida en dos sesiones. Dame técnicas de lectura rápida, control de ansiedad, y cómo identificar opciones distractoras que parecen correctas pero son incompletas. No me des teoría, dame técnica de descarte puro."
+            },
+            { 
+                id: 10, fecha: "Lun, 15 Jun", mat: "Sociales", tit: "Economía Básica y Global", 
+                sub: ["Leyes de oferta y demanda", "Aranceles, importaciones y deuda externa", "Proteccionismo vs Libre mercado"], tp: "20_preguntas",
+                pr: "Actúa como economista docente. Clase Día 10: 'Modelos Económicos y Mercado'. Domina: 1) Ley de oferta y demanda y cómo varían por regulaciones estatales. 2) Balanza comercial, aranceles, importaciones y peso de la deuda externa. 3) Debate estructural entre Proteccionismo y Neoliberalismo. Pásame 3 preguntas interpretativas basados en gráficas."
+            },
+            { 
+                id: 11, fecha: "Mar, 16 Jun", mat: "Sociales", tit: "Desarrollo e Ideologías", 
+                sub: ["Privatización, competitividad y subsidios", "Marxismo, Socialismo y Liberalismo", "Federalismo frente a Centralismo"], tp: "20_preguntas",
+                pr: "Actúa como filósofo político. Clase Día 11: 'Ideologías del Mundo Contemporáneo'. Enseña: 1) Tensiones entre privatización y subsidios. 2) Liberalismo clásico, socialismo utópico y científico, comunismo y marxismo-leninismo. 3) Pugnas geográficas de Federalismo vs Centralismo en el siglo XIX latinoamericano. Incluye 3 preguntas conceptuales severas."
+            },
+            { 
+                id: 12, fecha: "Mié, 17 Jun", mat: "Sociales", tit: "Historia de Colombia I", 
+                sub: ["Patria Boba e Independencia", "Conflicto bipartidista del Siglo XIX", "Economía colonial y tenencia de tierras"], tp: "20_preguntas",
+                pr: "Actúa como historiador nacional. Clase Día 12: 'Colombia: De la Colonia al Siglo XIX'. Explica: 1) Dinámicas coloniales de mita y encomienda. 2) La Patria Boba y fracturas de la Independencia. 3) Radicación del odio bipartidista liberal-conservador y guerras civiles del siglo XIX. Dame 3 análisis de textos de época tipo ICFES con opciones."
+            },
+            { 
+                id: 13, fecha: "Jue, 18 Jun", mat: "Sociales", tit: "Historia de Colombia II", 
+                sub: ["La Violencia y el Frente Nacional", "Surgimiento de Guerrillas, Paramilitares y Narcotráfico", "Voto femenino y movimientos sociales"], tp: "20_preguntas",
+                pr: "Actúa como historiador contemporáneo. Clase Día 13: 'Siglo XX y Conflicto Interno'. Analiza con máximo rigor: 1) El Bogotazo, era de La Violencia y el pacto de alternancia del Frente Nacional. 2) Factores objectives del nacimiento de guerrillas, paramilitarismo y penetración del narcotráfico. 3) Marchas estudiantiles de la Séptima Papeleta. Pásame 3 problemas resueltos."
+            },
+            { 
+                id: 14, fecha: "Vie, 19 Jun", mat: "Sociales", tit: "Geopolítica Mundial", 
+                sub: ["Revoluciones (Francesa, Industrial, Rusa, China)", "Guerras Mundiales, Guerra Fría y Conflicto Árabe-Israelí", "Imperialismo en África y el Apartheid"], tp: "20_preguntas",
+                pr: "Actúa como geopolítico internacional. Clase Día 14: 'Grandes Quiebres Mundiales'. Explica con mapas conceptuales abstractos: 1) Consecuencias sistémicas de las revoluciones burguesas y proletarias. 2) Dinámica de bloques de la Guerra Fría y tensiones del Medio Oriente. 3) Reparto de África y Apartheid sudafricano. Dame 3 preguntas complejas con lectura de caricaturas."
+            },
+            { 
+                id: 15, fecha: "Sáb, 20 Jun", mat: "Maratón", tit: "MARATÓN SOCIALES FINAL", 
+                sub: ["Simulacro general final de 40 preguntas del área", "Análisis de fallas remanentes", "Cierre definitivo del bloque con puntaje ideal"], tp: "40_preguntas",
+                pr: "Hoy cierro Sociales e Historia. Actúa como evaluador jefe. No me des teoría. Dame un set final de consejos tácticos de descarte agresivo para preguntas de Competencias Ciudadanas. ¿Cómo romper simetrías cuando dos opciones defienden los derechos constitucionales pero una es la respuesta correcta bajo el contexto del enunciado? Dame 3 ejemplos."
+            },
+
+            // ================= BLOCK 2: MATEMÁTICAS Y RAZONAMIENTO (DIAS 16-25) - 20 PREGUNTAS =================
+            {
+                id: 16, fecha: "Dom, 21 Jun", mat: "Matemáticas", tit: "Aritmética y Razonamiento Numérico",
+                sub: ["Operaciones con fracciones, decimales y porcentajes", "Razones, proporciones y regla de tres compuesta", "Sistemas de unidades y conversiones numéricas"], tp: "20_preguntas",
+                pr: "Actúa como matemático experto en ICFES. Clase Día 16: 'Aritmética y Razonamiento Métrico'. Enséñame a resolver mentalmente y de forma rápida: 1) Problemas complejos de porcentajes encadenados y fracciones de herencias o repartos. 2) Razones y proporciones usando regla de tres compuesta. 3) Conversión de unidades bidimensionales y tridimensionales. Dame 3 preguntas trampa clásicas."
+            },
+            {
+                id: 17, fecha: "Lun, 22 Jun", mat: "Matemáticas", tit: "Álgebra y Expresiones Modeladas",
+                sub: ["Ecuaciones lineales y sistemas de ecuaciones 2x2", "Ecuaciones cuadráticas y factorización fundamental", "Modelamiento algebraico de problemas cotidianos"], tp: "20_preguntas",
+                pr: "Actúa como profesor de álgebra preuniversitaria. Clase Día 17: 'Modelamiento Algebraico'. Cubre: 1) Traducción de enunciados verbales enredados a lenguaje algebraico. 2) Solución rápida de sistemas 2x2 por sustitución visual. 3) Interpretación analítica de la ecuación cuadrática (vértice y raíces) en contextos de optimización. Plantéame 3 ejercicios matemáticos tipo ICFES."
+            },
+            {
+                id: 18, fecha: "Mar, 23 Jun", mat: "Matemáticas", tit: "Funciones y Lectura Gráfica",
+                sub: ["Funciones lineales, afines y exponenciales", "Interpretación de pendientes e interceptos", "Lectura de gráficas cartesianas complejas"], tp: "20_preguntas",
+                pr: "Actúa como analista matemático. Clase Día 18: 'Funciones e Interpretación de Gráficas'. Enséñame a descifrar al segundo: 1) Comportamientos de funciones lineales, cuadráticas y de crecimiento exponencial. 2) Qué significa la pendiente en contextos físicos o económicos del mundo real. 3) Trampas visuales en ejes cartesianos alterados o con escalas logarítmicas. Pásame 3 preguntas gráficas severas."
+            },
+            {
+                id: 19, fecha: "Mié, 24 Jun", mat: "Matemáticas", tit: "Geometría Plana y Espacial",
+                sub: ["Cálculo de áreas, perímetros y figuras compuestas", "Teorema de Pitágoras y semejanza de triángulos", "Volúmenes de cuerpos geométricos (prismas, cilindros, esferas)"], tp: "20_preguntas",
+                pr: "Actúa como geómetra puro. Clase Día 19: 'Razonamiento Espacial y Geometría'. Domina: 1) Cálculo de áreas sombreadas en figuras compuestas por círculos y polígonos. 2) Aplicación avanzada de Semejanza de Triángulos y Teorema de Pitágoras sin calculadora. 3) Variación de volúmenes cuando cambias el radio o la altura de un cilindro. Dame 3 preguntas de alta complejidad espacial."
+            },
+            {
+                id: 20, fecha: "Jue, 25 Jun", mat: "Matemáticas", tit: "Estadística Descriptiva I",
+                sub: ["Medidas de tendencia central (Media, Mediana, Moda)", "Lectura de tablas de frecuencias absolutas y relativas", "Gráficos de barras, circulares e histogramas"], tp: "20_preguntas",
+                pr: "Actúa como estadístico experto Saber 11. Clase Día 20: 'Estadística Descriptiva Básica'. Enséñame: 1) Cuándo la mediana es más representativa que la media aritmética ante datos atípicos. 2) Extracción de información implícita en histogramas y polígonos de frecuencia. 3) Errores comunes al leer diagramas de sectores mal diseñados. Incluye 3 preguntas estadísticas trampa."
+            },
+            {
+                id: 21, fecha: "Vie, 26 Jun", mat: "Matemáticas", tit: "Estadística Descriptiva II y Conteo",
+                sub: ["Medidas de dispersión (Rango, Varianza, Desviación)", "Análisis de diagramas de caja y bigotes", "Técnicas de conteo (Permutaciones y Combinaciones)"], tp: "20_preguntas",
+                pr: "Actúa como analista de datos docente. Clase Día 21: 'Dispersión y Combinatoria'. Desarrolla: 1) Comprensión intuitiva de la Desviación Estándar (análisis de homogeneidad de muestras). 2) Lectura profunda de Diagramas de Caja y Bigotes (cuartiles, valores mínimos y máximos). 3) Diferencia matemática exacta entre Permutación y Combinación. Pásame 3 ejercicios analíticos avanzados."
+            },
+            {
+                id: 22, fecha: "Sáb, 27 Jun", mat: "Matemáticas", tit: "Probabilidad Inferencial",
+                sub: ["Probabilidad simple y regla de Laplace", "Eventos dependientes, independientes y mutuamente excluyentes", "Probabilidad condicional y diagramas de árbol"], tp: "20_preguntas",
+                pr: "Actúa como probabilista experto. Clase Día 22: 'Probabilidad Clásica y Condicional'. Explica con rigurosidad: 1) Aplicación de la regla de Laplace en escenarios complejos. 2) Cálculo de probabilidad en eventos sucesivos sin reemplazo (dependencia). 3) Estructuración mental de diagramas de árbol para resolver problemas condicionales confusos. Dame 3 preguntas de probabilidad tipo ICFES."
+            },
+            {
+                id: 23, fecha: "Dom, 28 Jun", mat: "Matemáticas", tit: "Trigonometría y Modelos Periódicos",
+                sub: ["Razones trigonométricas (Seno, Coseno, Tangente)", "Teoremas del Seno y del Coseno", "Análisis visual de ondas funcionales"], tp: "20_preguntas",
+                pr: "Actúa como profesor de trigonometría. Clase Día 23: 'Relaciones Trigonomet rías y Triángulos Oblicuángulos'. Cubre: 1) Razones en triángulos rectángulos con ángulos notables (30°, 45°, 60°). 2) Criterios exactos de aplicación para Teorema del Seno vs Teorema del Coseno. 3) Interpretación de funciones periódicas (Amplitud y Periodo). Incluye 3 casos de aplicación topográfica resueltos."
+            },
+            {
+                id: 24, fecha: "Lun, 29 Jun", mat: "Maratón", tit: "MARATÓN GLOBAL 2",
+                sub: ["Simulacro integral de 142 preguntas", "Controles de velocidad por área evaluada", "Diagnóstico cuantitativo de errores en matemáticas"], tp: "Global",
+                pr: "Actúa como mentor psicológico y técnico para el ICFES. Hoy ejecuto la segunda Maratón Global de 142 preguntas. Diseña una estrategia milimétrica para la sección matemática: 1) Cómo identificar en los primeros 15 segundos si una pregunta es de resolución rápida o requiere dejarla para el final. 2) Estrategia de ahorro de energía mental. No me des conceptos, dame estrategia de competencia."
+            },
+            {
+                id: 25, fecha: "Mar, 30 Jun", mat: "Maratón", tit: "MARATÓN MATEMÁTICAS FINAL",
+                sub: ["Simulacro de alta exigencia de 40 preguntas del área", "Análisis de distractores numéricos", "Cierre completo del bloque de razonamiento cuantitativo"], tp: "40_preguntas",
+                pr: "Hoy quemo Matemáticas. Actúa como matemático evaluador principal. Dame una lista analítica de los 10 patrones de distracción más comunes que usa el ICFES en las opciones numéricas (por ejemplo, poner el resultado parcial de un paso intermedio como opción A). Muéstramelo con 3 ejemplos prácticos donde el cálculo esté bien hecho pero responda a otra pregunta."
+            },
+
+            // ================= BLOCK 3: CIENCIAS NATURALES (DIAS 26-35) - 20 PREGUNTAS =================
+            {
+                id: 26, fecha: "Mié, 01 Jul", mat: "Ciencias", tit: "Biología: Célula y Homeostasis",
+                sub: ["Estructura celular y funciones de organelos", "Transporte de membrana (Pasivo, Activo, Endocitosis)", "Homeostasis y sistemas de regulación corporal"], tp: "20_preguntas",
+                pr: "Actúa como biólogo celular docente. Clase Día 26: 'Biología Celular y Sistemas Integrados'. Explica: 1) Organelos clave y su papel en el metabolismo energético (Mitocondria, Cloroplasto, Ribosoma). 2) Gradientes de concentración y transporte celular. 3) Mecanismos de retroalimentación biológica (Homeostasis). Pásame 3 preguntas de análisis experimental con variables."
+            },
+            {
+                id: 27, fecha: "Jue, 02 Jul", mat: "Ciencias", tit: "Biología: Genética y Evolución",
+                sub: ["Leyes de Mendel y cruces genéticos", "Código genético, mutaciones y síntesis de proteínas", "Teorías de la evolución, selección natural y especiación"], tp: "20_preguntas",
+                pr: "Actúa como genetista evolucionista. Clase Día 27: 'Genética de Poblaciones y Evolución'. Domina: 1) Cuadrículas de Punnett para herencia autosómica, intermedia y ligada al sexo. 2) Transcripción y traducción de ADN a ARN. 3) Presión de selección adaptativa frente al aislamiento geográfico. Entrega 3 problemas con árboles genealógicos complejos."
+            },
+            {
+                id: 28, fecha: "Vie, 03 Jul", mat: "Ciencias", tit: "Biología: Ecología y Ecosistemas",
+                sub: ["Flujo de energía, redes tróficas y pirámides ecológicas", "Ciclos biogeoquímicos (Carbono, Nitrógeno, Agua)", "Dinámica de poblaciones, nicho ecológico e impactos ambientales"], tp: "20_preguntas",
+                pr: "Actúa como ecólogo experto ICFES. Clase Día 28: 'Dinámicas Ecológicas e Impacto Ambiental'. Enséñame: 1) Ley del diezmo ecológico y eficiencia termodinámica en cadenas tróficas. 2) Fijación y alteración humana del ciclo del Nitrógeno y Carbono (efecto invernadero). 3) Curvas de crecimiento poblacional (K y r). Dame 3 preguntas basadas en tablas de datos de campo."
+            },
+            {
+                id: 29, fecha: "Sáb, 04 Jul", mat: "Ciencias", tit: "Química: Materia y Enlaces",
+                sub: ["Modelos atómicos, configuración electrónica y tabla periódica", "Propiedades periódicas (Electronegatividad, Radio, Ionización)", "Enlaces químicos (Iónico, Covalente, Metálico) y fuerzas intermoleculares"], tp: "20_preguntas",
+                pr: "Actúa como químico teórico. Clase Día 29: 'Estructura Atómica y Enlace Químico'. Desarrolla: 1) Configuración electrónica y electrones de valencia. 2) Cómo usar las tendencias de electronegatividad para predecir la geometría y polaridad molecular. 3) Puentes de hidrógeno y fuerzas de Van der Waals explicados físicamente. Pásame 3 preguntas trampa sobre puntos de ebullición."
+            },
+            {
+                id: 30, fecha: "Dom, 05 Jul", mat: "Ciencias", tit: "Química: Reacciones y Estequiometría",
+                sub: ["Tipos de reacciones químicas y balanceo de ecuaciones", "Leyes ponderales, concepto de mol y número de Avogadro", "Cálculos estequiométricos (Reactivo límite, rendimiento y pureza)"], tp: "20_preguntas",
+                pr: "Actúa como ingeniero químico docente. Clase Día 30: 'Estequiometría Reactiva Crítica'. Enséñame a calcular sin errores: 1) Balanceo por tanteo y redox rápido. 2) Determinación analítica del Reactivo Límite cuando dan cantidades en gramos o moles. 3) Pérdidas por rendimiento porcentual de la reacción. Proponme 3 preguntas estequiométricas duras tipo ICFES."
+            },
+            {
+                id: 31, fecha: "Lun, 06 Jul", mat: "Ciencias", tit: "Química: Soluciones y Gases",
+                sub: ["Unidades de concentración químicas (Molaridad, % p/p, % p/v)", "Propiedades de los gases ideales y leyes de los gases", "Concepto de pH, ácidos, bases y escala logarítmica"], tp: "20_preguntas",
+                pr: "Actúa como físico-químico experto. Clase Día 31: 'Soluciones, Comportamiento Gaseoso y pH'. Cubre: 1) Cálculos de dilución y molaridad. 2) Relaciones directas e inversas de Presión, Volumen y Temperatura usando la ecuación de estado de gases ideales. 3) Cálculo cualitativo de pH a partir de la concentración de iones H+. Dame 3 preguntas experimentales sobre solubilidad."
+            },
+            {
+                id: 32, fecha: "Mar, 07 Jul", mat: "Ciencias", tit: "Física: Mecánica Clásica",
+                sub: ["Cinemática (MRU, MRUA, Movimiento parabólico)", "Leyes de Newton, fuerzas fundamentales y diagramas de cuerpo libre", "Trabajo, energía cinética, potencial y conservación de la energía mecánica"], tp: "20_preguntas",
+                pr: "Actúa como físico newtoniano. Clase Día 32: 'Mecánica de Partículas y Conservación'. Desarrolla: 1) Análisis gráfico de posición, velocidad y aceleración vs tiempo. 2) Planteamiento preciso de Diagramas de Cuerpo Libre (Fricción, Tensión, Normal, Peso en planos inclinados). 3) Teorema del trabajo y la energía. Pásame 3 problemas complejos basados en conservación energética."
+            },
+            {
+                id: 33, fecha: "Mié, 08 Jul", mat: "Ciencias", tit: "Física: Ondas y Termodinámica",
+                sub: ["Propiedades de las ondas (Frecuencia, Periodo, Amplitud, Velocidad)", "Fenómenos ondulatorios (Reflexión, Refracción, Difracción, Interferencia)", "Leyes de la termodinámica, calor, temperatura y transferencia térmica"], tp: "20_preguntas",
+                pr: "Actúa como físico de ondas y calor. Clase Día 33: 'Fenómenos Ondulatorios y Termodinámicos'. Explica con analogías rigurosas: 1) Comportamiento óptico y acústico en cambios de medio (Refracción). 2) Ondas estacionarias y efecto Doppler. 3) Diferencia nítida entre calor y temperatura, procesos isotérmicos, isobáricos e isocóricos. Incluye 3 preguntas analíticas complejas."
+            },
+            {
+                id: 34, fecha: "Jue, 09 Jul", mat: "Maratón", tit: "MARATÓN GLOBAL 3",
+                sub: ["Simulacro completo (142 preguntas)", "Medición de resistencia cognitiva en Ciencias Naturales", "Alineación de descarte en diseño experimental"], tp: "Global",
+                pr: "Actúa como científico metodológico. Hoy es mi tercera Maratón Completa. Explícame la lógica que usa el ICFES para evaluar el componente investigativo: cómo identificar la hipótesis, cuál es la variable independiente (causa), la variable dependiente (efecto) y los grupos de control en los enunciados largos de Ciencias Naturales. Dame las pautas de lectura rápida de estos experimentos."
+            },
+            {
+                id: 35, fecha: "Vie, 10 Jul", mat: "Maratón", tit: "MARATÓN CIENCIAS FINAL",
+                sub: ["Simulacro general final de 40 preguntas del área", "Resolución de errores interdisciplinares", "Cierre del bloque integrado de ciencias"], tp: "40_preguntas",
+                pr: "Hoy quemo Ciencias Naturales. Actúa como evaluador interdisciplinar de Biología, Química y Física. Entrégame un cuestionario de alto calibre compuesto por 3 preguntas avanzadas donde se crucen las tres áreas de las ciencias (por ejemplo, el efecto físico del calor sobre una reacción química enzimática en una célula viva). Sustenta minuciosamente las respuestas."
+            },
+
+            // ================= BLOCK 4: LECTURA CRÍTICA (DIAS 36-41) - 20 PREGUNTAS =================
+            {
+                id: 36, fecha: "Sáb, 11 Jul", mat: "Lectura", tit: "Tipologías Textuales y Estructuras",
+                sub: ["Textos continuos (Argumentativos, Expositivos, Narrativos)", "Textos discontinuos (Caricaturas, Infografías)", "Identificación de la tesis, argumentos y conclusiones"], tp: "20_preguntas",
+                pr: "Actúa como filólogo experto en comprensión de lectura ICFES. Clase Día 36: 'Tipologías Textuales Continuas y Discontinuas'. Enséñame a diseccionar de inmediato: 1) Estructura interna de un texto argumentativo filosófico. 2) Lectura semiótica y analítica de caricaturas políticas e infografías sin perder detalles. 3) Cómo extraer la tesis central diferenciándola de un argumento de soporte. Pásame 3 lecturas críticas de prueba."
+            },
+            {
+                id: 37, fecha: "Dom, 12 Jul", mat: "Lectura", tit: "Niveles de Lectura: Literal e Inferencial",
+                sub: ["Comprensión literal de términos, conectores y morfología", "Lectura inferencial: Presuposiciones e implicaciones", "Relación semántica entre enunciados y párrafos conexos"], tp: "20_preguntas",
+                pr: "Actúa como experto en lingüística cognitiva. Clase Día 37: 'Lectura Literal Avanzada e Inferencial Dinámica'. Domina: 1) El rol lógico de los conectores adversativos, concesivos y explicativos en una argumentación. 2) Cómo deducir intenciones implícitas, sesgos del autor e ironías políticas en textos densos. 3) Cohesión textual. Dame 2 lecturas largas con preguntas inferenciales trampa."
+            },
+            {
+                id: 38, fecha: "Lun, 13 Jul", mat: "Lectura", tit: "Lectura Crítica e Intertextualidad",
+                sub: ["Evaluación de la validez de los argumentos y falacias lógicas", "Contraste de perspectivas entre dos autores diferentes", "Contextualización ideológica y filosófica del texto"], tp: "20_preguntas",
+                pr: "Actúa como filósofo de lenguaje y docente preuniversitario. Clase Día 38: 'Lectura Crítica y Desmontaje de Argumentos'. Enséñame a: 1) Detectar falacias argumentativas sutiles (ad hominem, hombre de paja, falso dilema) dentro del texto. 2) Contrastar opiniones encontradas de dos autores sobre un mismo dilema ético. 3) Evaluar la solidez de las conclusiones. Dame 3 ejercicios severos resueltos."
+            },
+            {
+                id: 39, fecha: "Mar, 14 Jul", mat: "Maratón", tit: "MARATÓN GLOBAL 4",
+                sub: ["Simulacro completo penúltimo (142 preguntas)", "Simulación real bajo presión de tiempo", "Optimización del bloque de lectura"], tp: "Global",
+                pr: "Actúa como estratega de lectura rápida y comprensión de alto nivel. Hoy enfrento mi cuarta Maratón Global. El dolor de cabeza de esta prueba es quedarse sin tiempo en la segunda sesión debido a los textos extensos. Dame un método mecánico para leer las preguntas ANTES de leer el texto, identificar las palabras clave que debo buscar en los párrafos, y optimizar el tiempo. Dame reglas puras de optimización."
+            },
+            {
+                id: 40, fecha: "Mié, 15 Jul", mat: "Lectura", tit: "Estrategias de Descarte Avanzado",
+                sub: ["Análisis de distractores por generalización", "Diferenciación entre premisas falsas y premisas irrelevantes", "Alineación de la respuesta con la intención del texto"], tp: "20_preguntas",
+                pr: "Actúa como redactor jefe de pruebas del estado de Lectura Crítica. Enséñame la cocina del examen: ¿Cómo construyen las tres opciones incorrectas en Lectura Crítica? Explícame los conceptos de: 1) Opción por contradicción parcial. 2) Opción por sobre-extensión. 3) Opción verdadera pero irrelevante para la pregunta. Dame un texto corto y desglósame un ejemplo con estas 4 variables exactas."
+            },
+            {
+                id: 41, fecha: "Jue, 16 Jul", mat: "Maratón", tit: "MARATÓN LECTURA FINAL",
+                sub: ["Simulacro total de 40 preguntas del área", "Resolución de dudas en textos filosóficos complejos", "Cierre con puntaje perfecto en comprensión textual"], tp: "40_preguntas",
+                pr: "Hoy quemo Lectura Crítica. Actúa como crítico literario y filósofo analítico. Deseo el desafío supremo antes de cerrar el bloque. Preséntame 2 fragmentos de textos filosóficos oscuros o densos (tipo Friedrich Nietzsche, Immanuel Kant o Estanislao Zuleta) con 2 preguntas inferenciales ultra complejas cada uno. Justifica línea por línea el descarte de las opciones erróneas."
+            },
+
+            // ================= BLOCK 5: INGLÉS (DIAS 42-45) - 40 PREGUNTAS =================
+            {
+                id: 42, fecha: "Vie, 17 Jul", mat: "Inglés", tit: "Gramática y Estructuras Verbales I",
+                sub: ["Tiempos verbales simples y continuos (Present, Past, Future)", "Uso de conectores lógicos y vocabulario básico", "Partes 1, 2 y 3 del examen de inglés (Avisos, emparejamiento, diálogos)"], tp: "40_preguntas",
+                pr: "Actúa como lingüista nativo de inglés y preparador ICFES. Clase Día 42: 'Inglés Partes 1 a 3 y Gramática Base'. Cubre: 1) Tiempos verbales del bloque simple y progresivo. 2) Vocabulario situacional común de lugares públicos. 3) Estrategia de resolución para asociar palabras del aviso con el contexto correcto. Dame 3 ejemplos de conversaciones cortas con las opciones más comunes de confusión."
+            },
+            {
+                id: 43, fecha: "Sáb, 18 Jul", mat: "Inglés", tit: "Gramática y Estructuras Verbales II",
+                sub: ["Tiempos perfectos (Present/Past Perfect) y modales", "Estructuras de condicionales (0, 1, 2 y 3)", "Parte 4 del examen: Textos con espacios gramaticales"], tp: "40_preguntas",
+                pr: "Actúa como profesor avanzado de inglés ESL. Clase Día 43: 'Estructuras Complejas e Inglés Parte 4'. Explica con claridad cristalina: 1) Diferencia de uso entre Present Perfect vs Past Simple. 2) Uso preciso de verbos modales (should, must, have to, might) y los 3 tipos de condicionales. 3) Cómo descifrar la opción correcta en la Parte 4 analizando las preposiciones adyacentes. Dame 3 problemas tipo test."
+            },
+            {
+                id: 44, fecha: "Dom, 19 Jul", mat: "Inglés", tit: "Comprensión Lectora en Inglés",
+                sub: ["Lectura de textos informativos (Parte 5)", "Lectura inferencial y posición del autor (Partes 6 y 7)", "Vocabulario avanzado, phrasal verbs y modismos"], tp: "40_preguntas",
+                pr: "Actúa como examinador oficial de inglés. Clase Día 44: 'Comprensión Lectora y Cloze Test Avanzado (Partes 5, 6 y 7)'. Desarrolla: 1) Técnicas de skimming y scanning aplicadas a textos extensos en inglés. 2) Cómo deducir el punto de vista del autor u opiniones no explícitas (Parte 6). 3) Análisis de distractores léxicos en la Parte 7. Proporcióname un texto de prueba complejo con preguntas argumentadas."
+            },
+            {
+                id: 45, fecha: "Lun, 20 Jul", mat: "Maratón", tit: "MARATÓN INGLÉS FINAL",
+                sub: ["Simulacro integral completo de 40 preguntas", "Manejo del cansancio al ser la última materia de la sesión", "Cierre y consolidación del bloque de idiomas"], tp: "40_preguntas",
+                pr: "Hoy quemo Inglés para siempre. Actúa como coach idiomático de alta competencia. Dado que inglés se responde al final del examen cuando el cerebro está exhausto, dame un set de estrategias psicológicas para no leer en automático, evitar errores tontos por distracción y asegurar el rendimiento óptimo en la sección de selección múltiple. Dame 3 casos prácticos."
+            },
+
+            // ================= SIMULACROS GENERALES INDEPENDIENTES DE CIERRE (DIAS 46-48) =================
+            {
+                id: 46, fecha: "Mar, 21 Jul", mat: "Maratón", tit: "SIMULACRO GENERAL DE COMBATE 1",
+                sub: ["Prueba real completa de 278 preguntas", "Aislamiento total de distractores", "Control de fatiga física prolongada"], tp: "Global",
+                pr: "Actúa como tu entrenador jefe para la recta final del ICFES. Hoy ejecuto el primer simulacro completo apocalíptico de 278 preguntas de corrido, emulando la mañana y la tarde del examen real. No me des teoría de materias. Dame una rutina de alimentación, hidratación, estiramiento en la silla y un protocolo estricto para gestionar el tiempo por bloques de materias sin desfallecer."
+            },
+            {
+                id: 47, fecha: "Mié, 22 Jul", mat: "Maratón", tit: "SIMULACRO GENERAL DE COMBATE 2",
+                sub: ["Prueba real completa alternativa de 278 preguntas", "Análisis de desviaciones de puntajes", "Ajuste milimétrico de cabos sueltos"], tp: "Global",
+                pr: "Actúa como analista matemático de curvas de rendimiento académico. He terminado mi penúltimo simulacro completo de 278 preguntas. Dame las instrucciones precisas para realizar una auditoría de errores: cómo clasificar mis respuestas incorrectas en tres categorías: 1) Error por falta de concepto. 2) Error por mala lectura del enunciado. 3) Error por desatención al pasar la hoja de respuestas."
+            },
+            {
+                id: 48, fecha: "Jue, 23 Jul", mat: "Maratón", tit: "DESAFÍO EXTREMO: PUNTAJE PERFECTO",
+                sub: ["Simulacro final predictivo de cierre", "Consolidación absoluta del plan de 48 días", "Licenciamiento total de la operación preuniversitaria"], tp: "Global",
+                pr: "Actúa como el mentor supremo que me ha guiado estos 48 días de inmersión total. Hoy es el último día del plan, ejecuto el simulacro final predictivo buscando la excelencia absoluta (Meta > 450/500). Dame la inyección de mentalidad competitiva definitiva, repásame las 5 reglas de oro inviolables de descarte lógico avanzado y prepárame mentalmente para destrozar el examen oficial."
+            }
+        ];
+
+        let appState = JSON.parse(localStorage.getItem('icfes_omega_48_state') || '{"completed":{},"scores":{}}');
+        let selectedDayId = null;
+
+        // FUNCIÓN CLAVE: Determina numéricamente si aprobó bajo tu regla estricta del 75%
+        function checkPassed(score, type) {
+            if (score === undefined || score === null) return false;
+            if (type === "20_preguntas") return score >= 15; // 15/20 es 75%
+            if (type === "40_preguntas") return score >= 30; // 30/40 es 75%
+            if (type === "Global") return score >= 375;     // 375/500 es 75%
+            return false;
+        }
+
+        // Retorna el mínimo requerido de forma visual
+        function getRequiredText(type) {
+            if (type === "20_preguntas") return "15 de 20 correctas (75%)";
+            if (type === "40_preguntas") return "30 de 40 correctas (75%)";
+            return "375 de 500 puntos (75%)";
+        }
+
+        function getBadgeClass(materia) {
+            switch(materia) {
+                case "Sociales": return "badge-soc text-blue-400 bg-blue-950/30 border-blue-900";
+                case "Matemáticas": return "badge-mat text-emerald-400 bg-emerald-950/30 border-emerald-900";
+                case "Ciencias": return "badge-cie text-purple-400 bg-purple-950/30 border-purple-900";
+                case "Lectura": return "badge-lec text-amber-400 bg-amber-950/30 border-amber-900";
+                case "Inglés": return "badge-ing text-pink-400 bg-pink-950/30 border-pink-900";
+                default: return "badge-mar text-red-400 bg-red-950/30 border-red-900";
+            }
+        }
+
+        function renderSidebar() {
+            const container = document.getElementById('day-navigator');
+            container.innerHTML = '';
+            
+            MasterDatabase.forEach(item => {
+                const isCompleted = appState.completed[item.id];
+                const score = appState.scores[item.id];
+                let borderStyle = "border-slate-900 bg-slate-900/10";
+                let icon = '<i class="fa-regular fa-circle text-slate-800 text-[10px]"></i>';
+                
+                if (score !== undefined) {
+                    if (checkPassed(score, item.tp)) {
+                        borderStyle = "border-emerald-950 bg-emerald-950/10 text-emerald-400";
+                        icon = '<i class="fa-solid fa-circle-check text-emerald-500 text-xs"></i>';
+                    } else {
+                        borderStyle = "border-red-950 bg-red-950/10 text-red-400";
+                        icon = '<i class="fa-solid fa-triangle-exclamation text-red-500 text-xs"></i>';
+                    }
+                } else if (isCompleted) {
+                    borderStyle = "border-indigo-950 bg-indigo-950/20";
+                    icon = '<i class="fa-solid fa-circle text-indigo-500 text-xs"></i>';
+                }
+
+                const badgeColor = getBadgeClass(item.mat);
+                const button = document.createElement('button');
+                button.id = `day-row-${item.id}`;
+                button.onclick = () => selectDay(item.id);
+                button.className = `w-full border p-2.5 rounded-xl flex items-center justify-between transition-all text-left group ${borderStyle} hover:border-slate-600`;
+                
+                let scoreText = 'Sin evaluar';
+                if (score !== undefined) {
+                    scoreText = item.tp === "Global" ? `Puntaje: ${score}/500` : `Buenas: ${score}/${item.tp === "20_preguntas" ? "20" : "40"}`;
+                }
+
+                button.innerHTML = `
+                    <div class="flex items-start gap-2.5 max-w-[85%]">
+                        <span class="code-font text-[8px] px-1.5 py-0.5 rounded font-bold bg-slate-900 text-slate-400 border border-slate-800 whitespace-nowrap">${item.fecha}</span>
+                        <div>
+                            <h4 class="text-[11px] font-bold text-slate-200 group-hover:text-indigo-400 transition-colors truncate">${item.tit}</h4>
+                            <div class="flex items-center gap-2 mt-0.5">
+                                <span class="text-[8px] font-extrabold uppercase border px-1 rounded-sm ${badgeColor}">${item.mat}</span>
+                                <span class="text-[9px] text-slate-500 font-medium">${scoreText}</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div>${icon}</div>
+                `;
+                container.appendChild(button);
+            });
+            calculateMetrics();
+        }
+
+        function selectDay(id) {
+            if (selectedDayId) {
+                const prev = document.getElementById(`day-row-${selectedDayId}`);
+                if(prev) prev.classList.remove('active-day');
+            }
+            
+            selectedDayId = id;
+            const target = MasterDatabase.find(x => x.id === id);
+            document.getElementById(`day-row-${id}`).classList.add('active-day');
+            document.getElementById('day-panel').classList.remove('hidden');
+            
+            document.getElementById('current-date-badge').innerText = target.fecha;
+            document.getElementById('header-title').innerText = `Día ${id}: ${target.tit}`;
+            document.getElementById('panel-title').innerText = target.tit;
+            
+            const b = document.getElementById('subject-badge');
+            b.innerText = target.mat;
+            b.className = `text-[9px] font-bold uppercase tracking-widest border px-2 py-0.5 rounded ${getBadgeClass(target.mat)}`;
+
+            let displayLabel = "Tus Respuestas Correctas";
+            if (target.tp === "Global") {
+                displayLabel = "Tu Puntaje de Maratón";
+            }
+            
+            document.getElementById('sim-goal').innerText = getRequiredText(target.tp);
+            document.getElementById('score-label-type').innerText = displayLabel;
+            
+            const currentScore = appState.scores[id];
+            const displayScore = document.getElementById('current-score-display');
+            const displayBadge = document.getElementById('status-badge');
+            
+            if (currentScore !== undefined) {
+                displayScore.innerText = target.tp === "Global" ? `${currentScore}` : `${currentScore}/${target.tp === "20_preguntas" ? "20" : "40"}`;
+                
+                if (checkPassed(currentScore, target.tp)) {
+                    displayScore.className = "text-2xl font-black text-emerald-400 code-font";
+                    displayBadge.innerText = "UMBRAL ALCANZADO";
+                    displayBadge.className = "block text-[9px] mt-1 font-bold text-emerald-500 bg-emerald-950/30 py-0.5 rounded border border-emerald-900";
+                } else {
+                    displayScore.className = "text-2xl font-black text-red-400 code-font";
+                    displayBadge.innerText = "REPETIR SIMULACRO";
+                    displayBadge.className = "block text-[9px] mt-1 font-bold text-red-500 bg-red-950/30 py-0.5 rounded border border-red-900";
+                }
+            } else {
+                displayScore.innerText = "--";
+                displayScore.className = "text-3xl font-black text-slate-600 code-font";
+                displayBadge.innerText = "Sin Datos";
+                displayBadge.className = "block text-[9px] mt-1 font-bold text-slate-500";
+            }
+
+            const listContainer = document.getElementById('panel-topics-list');
+            listContainer.innerHTML = '';
+            target.sub.forEach(st => {
+                const div = document.createElement('div');
+                div.className = "text-xs text-slate-300 flex items-center gap-2 bg-black/40 p-2 rounded-lg border border-slate-950";
+                div.innerHTML = `<i class="fa-solid fa-caret-right text-indigo-500"></i> <span>${st}</span>`;
+                listContainer.appendChild(div);
+            });
+
+            document.getElementById('prompt-preview').innerText = target.pr;
+        }
+
+        function openModal() {
+            if (!selectedDayId) return alert("Selecciona una jornada primero en el navegador lateral.");
+            const target = MasterDatabase.find(x => x.id === selectedDayId);
+            
+            let placeholder = "Escribe el total de tus buenas (0-20)";
+            if (target.tp === "40_preguntas") placeholder = "Escribe tus buenas de inglés (0-40)";
+            if (target.tp === "Global") placeholder = "Escribe tu puntaje global (0-500)";
+            
+            document.getElementById('modal-score-input').placeholder = placeholder;
+            document.getElementById('score-modal').classList.remove('hidden');
+            document.getElementById('modal-score-input').focus();
+        }
+
+        function closeModal() {
+            document.getElementById('score-modal').classList.add('hidden');
+            document.getElementById('modal-score-input').value = '';
+        }
+
+        function saveScore() {
+            const val = parseInt(document.getElementById('modal-score-input').value);
+            if (isNaN(val) || val < 0) return alert("Escribe un valor numérico real.");
+            
+            const target = MasterDatabase.find(x => x.id === selectedDayId);
+            
+            // Validación de límites máximos para evitar datos basura
+            if (target.tp === "20_preguntas" && val > 20) return alert("El máximo en este simulacro son 20 preguntas.");
+            if (target.tp === "40_preguntas" && val > 40) return alert("El máximo en este simulacro son 40 preguntas.");
+            if (target.tp === "Global" && val > 500) return alert("El puntaje global máximo es 500.");
+
+            appState.scores[selectedDayId] = val;
+            
+            // Si pasa el 75%, marcar el día como completado automáticamente
+            if (checkPassed(val, target.tp)) {
+                appState.completed[selectedDayId] = true;
+            } else {
+                appState.completed[selectedDayId] = false; // Forzar falso si no llega al umbral
+            }
+            
+            localStorage.setItem('icfes_omega_48_state', JSON.stringify(appState));
+            closeModal();
+            renderSidebar();
+            selectDay(selectedDayId);
+        }
+
+        function toggleDayComplete() {
+            if (!selectedDayId) return;
+            appState.completed[selectedDayId] = !appState.completed[selectedDayId];
+            localStorage.setItem('icfes_omega_48_state', JSON.stringify(appState));
+            renderSidebar();
+            if (selectedDayId < MasterDatabase.length) selectDay(selectedDayId + 1);
+        }
+
+        function calculateMetrics() {
+            const total = MasterDatabase.length;
+            
+            // Días aprobados son los que tienen un score que cumple el 75%
+            let passedCount = 0;
+            MasterDatabase.forEach(item => {
+                const score = appState.scores[item.id];
+                if (score !== undefined && checkPassed(score, item.tp)) {
+                    passedCount++;
+                }
+            });
+
+            const pct = Math.round((passedCount / total) * 100) || 0;
+            
+            document.getElementById('pct-text').innerText = `${pct}% Aprobado`;
+            document.getElementById('pct-bar').style.width = `${pct}%`;
+
+            const entriesCount = Object.keys(appState.scores).length;
+            document.getElementById('sim-count').innerText = `${entriesCount}/${total}`;
+        }
+
+        renderSidebar();
+    </script>
+</body>
+</html>
